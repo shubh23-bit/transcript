@@ -1,0 +1,478 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AI Interview Assistant</title>
+<style>
+  :root {
+    --bg: #f5f6fa;
+    --card: #ffffff;
+    --text: #1b1f2a;
+    --muted: #6b7280;
+    --border: #e3e6ee;
+    --accent: #4f46e5;
+    --accent-soft: #eef0ff;
+    --success: #059669;
+    --success-soft: #e7f8f1;
+    --danger: #dc2626;
+    --danger-soft: #fdecec;
+    --shadow: 0 10px 30px rgba(20, 24, 40, 0.08);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0f1117;
+      --card: #171a23;
+      --text: #e8eaf0;
+      --muted: #9aa1b2;
+      --border: #2a2f3d;
+      --accent: #818cf8;
+      --accent-soft: #23264a;
+      --success: #34d399;
+      --success-soft: #12302a;
+      --danger: #f87171;
+      --danger-soft: #3a1c1c;
+      --shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
+    }
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.5;
+  }
+  .wrap { max-width: 760px; margin: 0 auto; padding: 48px 20px 64px; }
+
+  header { text-align: center; margin-bottom: 32px; }
+  .logo {
+    width: 52px; height: 52px; margin: 0 auto 14px;
+    border-radius: 14px; display: grid; place-items: center;
+    background: var(--accent); color: #fff;
+  }
+  h1 { font-size: 1.9rem; margin: 0 0 6px; letter-spacing: -0.02em; }
+  header p { margin: 0; color: var(--muted); }
+
+  .card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 18px;
+    box-shadow: var(--shadow);
+    padding: 28px;
+  }
+
+  .modes {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 6px;
+    background: var(--bg); border: 1px solid var(--border);
+    border-radius: 12px; padding: 5px; margin-bottom: 22px;
+  }
+  .modes button {
+    border: 0; background: transparent; color: var(--muted);
+    padding: 10px; border-radius: 8px; font: inherit; font-weight: 600;
+    cursor: pointer;
+  }
+  .modes button.active { background: var(--card); color: var(--text); box-shadow: 0 1px 4px rgba(0,0,0,.08); }
+
+  .drop {
+    border: 2px dashed var(--border);
+    border-radius: 14px;
+    padding: 40px 20px;
+    text-align: center;
+    cursor: pointer;
+    transition: border-color .15s, background .15s;
+  }
+  .drop:hover, .drop.drag { border-color: var(--accent); background: var(--accent-soft); }
+  .drop svg { color: var(--accent); margin-bottom: 10px; }
+  .drop strong { display: block; font-size: 1.05rem; }
+  .drop span { color: var(--muted); font-size: .9rem; }
+
+  .file {
+    display: flex; align-items: center; gap: 14px;
+    border: 1px solid var(--border); border-radius: 12px; padding: 14px 16px;
+  }
+  .file .icon {
+    flex: none; width: 42px; height: 42px; border-radius: 10px;
+    background: var(--accent-soft); color: var(--accent);
+    display: grid; place-items: center;
+  }
+  .file .meta { flex: 1; min-width: 0; }
+  .file .name { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .file .size { color: var(--muted); font-size: .85rem; }
+  .icon-btn {
+    border: 0; background: transparent; color: var(--muted);
+    cursor: pointer; padding: 6px; border-radius: 8px; font-size: 1.2rem; line-height: 1;
+  }
+  .icon-btn:hover { background: var(--bg); color: var(--text); }
+
+  .primary {
+    width: 100%; margin-top: 18px; padding: 14px;
+    border: 0; border-radius: 12px; cursor: pointer;
+    background: var(--accent); color: #fff; font: inherit; font-weight: 600; font-size: 1rem;
+  }
+  .primary:disabled { opacity: .5; cursor: not-allowed; }
+  .secondary {
+    padding: 11px 18px; border-radius: 10px; cursor: pointer;
+    border: 1px solid var(--border); background: var(--card); color: var(--text);
+    font: inherit; font-weight: 600; text-decoration: none; display: inline-block;
+  }
+
+  .steps { list-style: none; margin: 0; padding: 0; }
+  .steps li {
+    display: flex; align-items: center; gap: 12px;
+    padding: 10px 0; color: var(--muted);
+  }
+  .steps li .dot {
+    flex: none; width: 26px; height: 26px; border-radius: 50%;
+    border: 2px solid var(--border); display: grid; place-items: center; font-size: .8rem;
+  }
+  .steps li.active { color: var(--text); font-weight: 600; }
+  .steps li.active .dot { border-color: var(--accent); border-top-color: transparent; animation: spin .8s linear infinite; }
+  .steps li.done { color: var(--text); }
+  .steps li.done .dot { border-color: var(--success); background: var(--success); color: #fff; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .bar { height: 8px; background: var(--bg); border-radius: 99px; overflow: hidden; margin: 6px 0 4px 38px; }
+  .bar > div { height: 100%; width: 0; background: var(--accent); transition: width .2s; }
+  .hint { color: var(--muted); font-size: .88rem; margin: 14px 0 0; text-align: center; }
+
+  .alert { border-radius: 12px; padding: 14px 16px; margin-top: 18px; }
+  .alert.error { background: var(--danger-soft); color: var(--danger); }
+
+  .done-head { display: flex; align-items: center; gap: 12px; margin-bottom: 18px; }
+  .done-head .tick {
+    width: 40px; height: 40px; border-radius: 50%; flex: none;
+    background: var(--success-soft); color: var(--success); display: grid; place-items: center;
+  }
+  .done-head h2 { margin: 0; font-size: 1.2rem; }
+  .done-head p { margin: 0; color: var(--muted); font-size: .9rem; }
+  .actions { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 18px; }
+  .actions .primary { width: auto; margin: 0; padding: 11px 18px; font-size: .95rem; text-decoration: none; }
+  iframe { width: 100%; height: 70vh; border: 1px solid var(--border); border-radius: 12px; background: #fff; }
+  .transcript {
+    white-space: pre-wrap; max-height: 60vh; overflow: auto;
+    border: 1px solid var(--border); border-radius: 12px; padding: 16px;
+    background: var(--bg); font-size: .95rem;
+  }
+
+  footer { text-align: center; color: var(--muted); font-size: .82rem; margin-top: 24px; }
+  [hidden] { display: none !important; }
+
+  @media (max-width: 480px) {
+    .wrap { padding-top: 28px; }
+    .card { padding: 20px; }
+    h1 { font-size: 1.5rem; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="logo">
+      <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M8 13h8M8 17h5"/></svg>
+    </div>
+    <h1>AI Interview Assistant</h1>
+    <p>Upload an interview video and get a PDF of questions, answers and revision notes.</p>
+  </header>
+
+  <!-- Step 1: pick a file -->
+  <section class="card" id="uploadView">
+    <div class="modes" role="tablist">
+      <button class="active" data-mode="pdf" role="tab">Interview PDF</button>
+      <button data-mode="transcript" role="tab">Transcript only</button>
+    </div>
+
+    <label class="drop" id="drop">
+      <input type="file" id="fileInput" accept=".mp4,.mov,.mkv,.avi,.webm,.m4v,video/*" hidden>
+      <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M17 8l-5-5-5 5"/><path d="M12 3v12"/></svg>
+      <strong>Drop your video here or click to browse</strong>
+      <span>MP4, MOV, MKV, AVI, WEBM, M4V &middot; up to 700 MB</span>
+    </label>
+
+    <div class="file" id="fileCard" hidden>
+      <div class="icon">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="15" height="14" rx="2"/><path d="M17 10l5-3v10l-5-3z"/></svg>
+      </div>
+      <div class="meta">
+        <div class="name" id="fileName"></div>
+        <div class="size" id="fileSize"></div>
+      </div>
+      <button class="icon-btn" id="removeFile" title="Remove file" aria-label="Remove file">&times;</button>
+    </div>
+
+    <div class="alert error" id="error" hidden></div>
+
+    <button class="primary" id="submitBtn" disabled>Generate PDF</button>
+  </section>
+
+  <!-- Step 2: progress -->
+  <section class="card" id="progressView" hidden>
+    <ul class="steps">
+      <li id="stepUpload"><span class="dot"></span><span>Uploading video <span id="uploadPct"></span></span></li>
+      <li class="bar-row"><div class="bar" style="flex:1"><div id="uploadBar"></div></div></li>
+      <li id="stepProcess"><span class="dot"></span><span id="processLabel">Transcribing &amp; generating notes</span></li>
+    </ul>
+    <p class="hint" id="processHint">Keep this tab open. Processing usually takes 1&ndash;3 minutes depending on video length.</p>
+  </section>
+
+  <!-- Step 3: result -->
+  <section class="card" id="resultView" hidden>
+    <div class="done-head">
+      <div class="tick">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>
+      </div>
+      <div>
+        <h2 id="resultTitle">Your PDF is ready</h2>
+        <p id="resultSub"></p>
+      </div>
+    </div>
+    <div class="actions">
+      <a class="primary" id="downloadBtn" href="#">Download</a>
+      <button class="secondary" id="copyBtn" hidden>Copy transcript</button>
+      <button class="secondary" id="againBtn">Upload another video</button>
+    </div>
+    <iframe id="pdfPreview" title="PDF preview" hidden></iframe>
+    <div class="transcript" id="transcriptBox" hidden></div>
+  </section>
+
+  <footer>Powered by Groq Whisper &amp; LLM &middot; AI-generated explanations are labelled in the PDF</footer>
+</div>
+
+<script>
+  const MAX_SIZE = 700 * 1024 * 1024;
+  const ALLOWED = [".mp4", ".mov", ".mkv", ".avi", ".webm", ".m4v"];
+  const ENDPOINTS = {
+    pdf: "/api/v1/videos/interview-pdf",
+    transcript: "/api/v1/videos/transcribe",
+  };
+
+  const $ = (id) => document.getElementById(id);
+  let mode = "pdf";
+  let selectedFile = null;
+  let objectUrl = null;
+  let timer = null;
+
+  function formatSize(bytes) {
+    if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + " KB";
+    return (bytes / (1024 * 1024)).toFixed(1) + " MB";
+  }
+
+  function showError(message) {
+    $("error").textContent = message;
+    $("error").hidden = !message;
+  }
+
+  function show(view) {
+    for (const id of ["uploadView", "progressView", "resultView"]) {
+      $(id).hidden = id !== view;
+    }
+  }
+
+  // Mode tabs
+  document.querySelectorAll(".modes button").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      document.querySelectorAll(".modes button").forEach((b) => b.classList.remove("active"));
+      btn.classList.add("active");
+      mode = btn.dataset.mode;
+      $("submitBtn").textContent = mode === "pdf" ? "Generate PDF" : "Generate transcript";
+    });
+  });
+
+  // File selection
+  function setFile(file) {
+    showError("");
+    if (!file) return;
+
+    const ext = "." + file.name.split(".").pop().toLowerCase();
+    if (!ALLOWED.includes(ext)) {
+      showError("Unsupported file type. Please choose " + ALLOWED.join(", ") + ".");
+      return;
+    }
+    if (file.size === 0) {
+      showError("The selected file is empty.");
+      return;
+    }
+    if (file.size > MAX_SIZE) {
+      showError("This video is " + formatSize(file.size) + ". The limit is 700 MB.");
+      return;
+    }
+
+    selectedFile = file;
+    $("fileName").textContent = file.name;
+    $("fileSize").textContent = formatSize(file.size);
+    $("drop").hidden = true;
+    $("fileCard").hidden = false;
+    $("submitBtn").disabled = false;
+  }
+
+  function clearFile() {
+    selectedFile = null;
+    $("fileInput").value = "";
+    $("drop").hidden = false;
+    $("fileCard").hidden = true;
+    $("submitBtn").disabled = true;
+  }
+
+  $("fileInput").addEventListener("change", (e) => setFile(e.target.files[0]));
+  $("removeFile").addEventListener("click", clearFile);
+
+  const drop = $("drop");
+  ["dragenter", "dragover"].forEach((evt) =>
+    drop.addEventListener(evt, (e) => { e.preventDefault(); drop.classList.add("drag"); })
+  );
+  ["dragleave", "drop"].forEach((evt) =>
+    drop.addEventListener(evt, (e) => { e.preventDefault(); drop.classList.remove("drag"); })
+  );
+  drop.addEventListener("drop", (e) => setFile(e.dataTransfer.files[0]));
+
+  // Progress UI
+  function setStep(id, state) {
+    $(id).classList.remove("active", "done");
+    if (state) $(id).classList.add(state);
+    $(id).querySelector(".dot").textContent = state === "done" ? "✓" : "";
+  }
+
+  function startProcessingTimer() {
+    const started = Date.now();
+    const base = mode === "pdf" ? "Transcribing & generating notes" : "Transcribing audio";
+    $("processLabel").textContent = base;
+    timer = setInterval(() => {
+      const s = Math.floor((Date.now() - started) / 1000);
+      const t = Math.floor(s / 60) + ":" + String(s % 60).padStart(2, "0");
+      $("processLabel").textContent = base + " · " + t;
+    }, 1000);
+  }
+
+  function stopTimer() {
+    clearInterval(timer);
+    timer = null;
+  }
+
+  function errorFromResponse(xhr) {
+    let detail = "";
+    try {
+      const text = xhr.response instanceof Blob ? null : xhr.responseText;
+      if (text) detail = JSON.parse(text).detail;
+    } catch (_) {}
+    return detail || "Request failed (HTTP " + xhr.status + ").";
+  }
+
+  // Upload
+  $("submitBtn").addEventListener("click", () => {
+    if (!selectedFile) return;
+
+    const form = new FormData();
+    form.append("file", selectedFile);
+
+    const xhr = new XMLHttpRequest();
+    xhr.open("POST", ENDPOINTS[mode]);
+    xhr.responseType = mode === "pdf" ? "blob" : "text";
+
+    show("progressView");
+    setStep("stepUpload", "active");
+    setStep("stepProcess", null);
+    $("uploadBar").style.width = "0%";
+    $("uploadPct").textContent = "";
+
+    xhr.upload.onprogress = (e) => {
+      if (!e.lengthComputable) return;
+      const pct = Math.round((e.loaded / e.total) * 100);
+      $("uploadBar").style.width = pct + "%";
+      $("uploadPct").textContent = "(" + pct + "%)";
+    };
+
+    xhr.upload.onload = () => {
+      setStep("stepUpload", "done");
+      setStep("stepProcess", "active");
+      startProcessingTimer();
+    };
+
+    xhr.onload = async () => {
+      stopTimer();
+      if (xhr.status >= 200 && xhr.status < 300) {
+        setStep("stepProcess", "done");
+        if (mode === "pdf") showPdf(xhr);
+        else showTranscript(JSON.parse(xhr.responseText));
+        return;
+      }
+
+      let message;
+      if (xhr.response instanceof Blob) {
+        try { message = JSON.parse(await xhr.response.text()).detail; } catch (_) {}
+      }
+      fail(message || errorFromResponse(xhr));
+    };
+
+    xhr.onerror = () => {
+      stopTimer();
+      fail("Could not reach the server. Make sure the backend is running.");
+    };
+
+    xhr.send(form);
+  });
+
+  function fail(message) {
+    show("uploadView");
+    showError(message);
+  }
+
+  // Results
+  function resetResult() {
+    if (objectUrl) URL.revokeObjectURL(objectUrl);
+    objectUrl = null;
+    $("pdfPreview").hidden = true;
+    $("pdfPreview").removeAttribute("src");
+    $("transcriptBox").hidden = true;
+    $("copyBtn").hidden = true;
+  }
+
+  function showPdf(xhr) {
+    resetResult();
+    const disposition = xhr.getResponseHeader("Content-Disposition") || "";
+    const match = disposition.match(/filename\*?=(?:UTF-8'')?"?([^";]+)"?/i);
+    const filename = match ? decodeURIComponent(match[1]) : "interview_notes.pdf";
+
+    objectUrl = URL.createObjectURL(xhr.response);
+    $("resultTitle").textContent = "Your PDF is ready";
+    $("resultSub").textContent = filename;
+    $("downloadBtn").href = objectUrl;
+    $("downloadBtn").download = filename;
+    $("downloadBtn").textContent = "Download PDF";
+    $("pdfPreview").src = objectUrl;
+    $("pdfPreview").hidden = false;
+    show("resultView");
+  }
+
+  function showTranscript(data) {
+    resetResult();
+    const name = data.filename.replace(/\.[^.]+$/, "") + "_transcript.txt";
+    objectUrl = URL.createObjectURL(new Blob([data.transcript], { type: "text/plain" }));
+    $("resultTitle").textContent = "Transcript ready";
+    $("resultSub").textContent = data.filename + " · " + data.character_count.toLocaleString() + " characters";
+    $("downloadBtn").href = objectUrl;
+    $("downloadBtn").download = name;
+    $("downloadBtn").textContent = "Download .txt";
+    $("transcriptBox").textContent = data.transcript;
+    $("transcriptBox").hidden = false;
+    $("copyBtn").hidden = false;
+    show("resultView");
+  }
+
+  $("copyBtn").addEventListener("click", async () => {
+    try {
+      await navigator.clipboard.writeText($("transcriptBox").textContent);
+      $("copyBtn").textContent = "Copied!";
+      setTimeout(() => ($("copyBtn").textContent = "Copy transcript"), 1500);
+    } catch (_) {}
+  });
+
+  $("againBtn").addEventListener("click", () => {
+    resetResult();
+    clearFile();
+    showError("");
+    show("uploadView");
+  });
+</script>
+</body>
+</html>
