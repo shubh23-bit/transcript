@@ -29,6 +29,15 @@ def safe_text(value) -> str:
     return escape(str(value or "")).replace("\n", "<br/>")
 
 
+def split_paragraphs(text: str, sentences_per_paragraph: int = 5) -> list[str]:
+    """Break a transcript into short paragraphs so it is readable."""
+    sentences = re.split(r"(?<=[.?!])\s+", text)
+    return [
+        " ".join(sentences[i:i + sentences_per_paragraph])
+        for i in range(0, len(sentences), sentences_per_paragraph)
+    ]
+
+
 def create_interview_pdf(data: dict, original_filename: str) -> Path:
     """Create and save an interview Q&A PDF."""
 
@@ -110,18 +119,37 @@ def create_interview_pdf(data: dict, original_filename: str) -> Path:
             styles["BodyText"],
         ))
 
-    story.append(PageBreak())
-    story.append(Paragraph(
-        "Interview Questions & Answers",
-        styles["Heading1"],
-    ))
+    sections = [s for s in data.get("sections", []) if isinstance(s, dict)]
 
-    questions = data.get("questions", [])
+    if sections:
+        story.append(PageBreak())
+        story.append(Paragraph("Detailed Notes", styles["Heading1"]))
 
-    if not questions:
+        for index, item in enumerate(sections, start=1):
+            story.append(Paragraph(
+                f"{index}. {safe_text(item.get('heading', 'Topic'))}",
+                styles["QuestionHeading"],
+            ))
+            story.append(Paragraph(
+                safe_text(item.get("content", "")),
+                styles["BodyText"],
+            ))
+
+            for point in item.get("key_points", []) or []:
+                story.append(Paragraph(
+                    f"&bull; {safe_text(point)}",
+                    styles["BodyText"],
+                ))
+
+            story.append(Spacer(1, 8))
+
+    questions = [q for q in data.get("questions", []) if isinstance(q, dict)]
+
+    if questions:
+        story.append(PageBreak())
         story.append(Paragraph(
-            "No identifiable interview questions were found.",
-            styles["BodyText"],
+            "Interview Questions & Answers",
+            styles["Heading1"],
         ))
 
     for index, item in enumerate(questions, start=1):
@@ -187,6 +215,16 @@ def create_interview_pdf(data: dict, original_filename: str) -> Path:
             "No revision notes available.",
             styles["BodyText"],
         ))
+
+    # The full transcript guarantees nothing said in the video is lost,
+    # even if the AI notes miss something.
+    transcript = str(data.get("transcript") or "").strip()
+    if transcript:
+        story.append(PageBreak())
+        story.append(Paragraph("Full Transcript", styles["Heading1"]))
+        for paragraph in split_paragraphs(transcript):
+            story.append(Paragraph(safe_text(paragraph), styles["BodyText"]))
+            story.append(Spacer(1, 6))
 
     doc.build(story)
     return output_path
